@@ -78,6 +78,7 @@ def record(
         try:
             data, timestamp = inlet.pull_chunk(
                 timeout=1.0, max_samples=chunk_length)
+            print(data)
 
             if timestamp:
                 res.append(data)
