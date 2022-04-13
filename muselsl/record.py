@@ -5,14 +5,16 @@ from typing import Union, List, Optional
 from pathlib import Path
 from pylsl import StreamInlet, resolve_byprop
 from sklearn.linear_model import LinearRegression
-from time import time, strftime, gmtime
+from time import time, sleep, strftime, gmtime
 from .stream import find_muse
-from . import backends
 from .muse import Muse
 from .constants import LSL_SCAN_TIMEOUT, LSL_EEG_CHUNK, LSL_PPG_CHUNK, LSL_ACC_CHUNK, LSL_GYRO_CHUNK
 
-# Records a fixed duration of EEG data from an LSL stream into a CSV file
+import socket
+import argparse
+from pythonosc import udp_client
 
+# Records a fixed duration of EEG data from an LSL stream into a CSV file
 
 def record(
     duration: int,
@@ -74,11 +76,22 @@ def record(
     last_written_timestamp = None
     print('Start recording at time t=%.3f' % t_init)
     print('Time correction: ', time_correction)
-    while (time() - t_init) < duration:
+    count = 0
+
+    #SendMuse setup
+    UDP_IP = "127.0.0.1"
+    UDP_PORT = 1234
+    client = udp_client.SimpleUDPClient(UDP_IP, UDP_PORT)
+
+
+    # while (time() - t_init) < duration:
+    while True:
         try:
             data, timestamp = inlet.pull_chunk(
                 timeout=1.0, max_samples=chunk_length)
-            print(data)
+            data_sep_by_spaces = " ".join([str(elem) for elem in data[0]])
+            # print(data_sep_by_spaces)
+            client.send_message("/filter", data_sep_by_spaces)
 
             if timestamp:
                 res.append(data)
@@ -89,39 +102,39 @@ def record(
                 if timestamp:
                     markers.append([marker, timestamp])
 
-            # Save every 5s
-            if continuous and (last_written_timestamp is None or last_written_timestamp + 5 < timestamps[-1]):
-                _save(
-                    filename,
-                    res,
-                    timestamps,
-                    time_correction,
-                    dejitter,
-                    inlet_marker,
-                    markers,
-                    ch_names,
-                    last_written_timestamp=last_written_timestamp,
-                )
-                last_written_timestamp = timestamps[-1]
+            # # Save every 5s
+            # if continuous and (last_written_timestamp is None or last_written_timestamp + 5 < timestamps[-1]):
+            #     _save(
+            #         filename,
+            #         res,
+            #         timestamps,
+            #         time_correction,
+            #         dejitter,
+            #         inlet_marker,
+            #         markers,
+            #         ch_names,
+            #         last_written_timestamp=last_written_timestamp,
+            #     )
+                # last_written_timestamp = timestamps[-1]
 
         except KeyboardInterrupt:
             break
 
     time_correction = inlet.time_correction()
-    print("Time correction: ", time_correction)
+    # print("Time correction: ", time_correction)
 
-    _save(
-        filename,
-        res,
-        timestamps,
-        time_correction,
-        dejitter,
-        inlet_marker,
-        markers,
-        ch_names,
-    )
+    # _save(
+    #     filename,
+    #     res,
+    #     timestamps,
+    #     time_correction,
+    #     dejitter,
+    #     inlet_marker,
+    #     markers,
+    #     ch_names,
+    # )
 
-    print("Done - wrote file: {}".format(filename))
+    # print("Done - wrote file: {}".format(filename))
 
 
 def _save(
@@ -221,7 +234,7 @@ def record_direct(duration,
 
     while (time() - t_init) < duration:
         try:
-            backends.sleep(1)
+            sleep(1)
         except KeyboardInterrupt:
             break
 
