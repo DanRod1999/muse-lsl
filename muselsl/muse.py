@@ -4,7 +4,6 @@ import numpy as np
 from time import time, sleep
 from sys import platform
 import subprocess
-from . import backends
 from . import helper
 from .constants import *
 
@@ -60,7 +59,7 @@ class Muse():
         self.preset = preset
         self.disable_light = disable_light
 
-    def connect(self, interface=None):
+    def connect(self, interface=None, backend='auto'):
         """Connect to the device"""
         try:
             if self.backend == 'bluemuse':
@@ -74,8 +73,6 @@ class Muse():
                 if self.backend == 'gatt':
                     self.interface = self.interface or 'hci0'
                     self.adapter = pygatt.GATTToolBackend(self.interface)
-                elif self.backend == 'bleak':
-                    self.adapter = backends.BleakBackend()
                 else:
                     self.adapter = pygatt.BGAPIBackend(
                         serial_port=self.interface)
